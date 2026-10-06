@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Пункт СВЁРНУТОГО спиннера (видим всегда, не только при открытии).
+     Фон не задаём — его даёт контейнер Spinner (btn_neutral / подчёркивание
+     в activity_settings.xml), здесь фиксируем только цвет текста, чтобы он
+     не зависел от системной Day/Night темы. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="40dp"
+    android:gravity="center_vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:textColor="#E8EAED"
+    android:textSize="14sp"
+    android:ellipsize="end"
+    android:singleLine="true" />

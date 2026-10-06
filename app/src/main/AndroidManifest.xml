@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- нужно для чтения выбранных пользователем файлов книг через SAF -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="32" />
+
+    <!-- Полный доступ к общему хранилищу. Нужен для собственного файлового
+    браузера NovaReader и сканирования вложенных папок/USB-накопителей. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- TTS в foreground service: разрешения нужны с Android 14 (API 34) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Android 13+ требует явного разрешения на уведомления -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Для "кофеина" в сервисе (если понадобится PARTIAL_WAKE_LOCK) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Android 11+ (API 30+): package visibility. Без этого блока
+    PackageManager отдаёт приложению неполный список TTS-движков
+    (обычно виден только Google) — сторонние движки существуют в
+    системе и видны в Настройках (у Настроек нет этого ограничения),
+    но именно НАШЕМУ приложению не видны, пока мы не объявим, что нам
+    нужен доступ к сервисам с этим action. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="NovaReader"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:hardwareAccelerated="true"
+        android:theme="@style/AppTheme">
+
+        <!-- ВАЖНО: расширенный configChanges — чтобы HyperOS не пересоздавала
+        Activity при разблокировке экрана / смене конфигурации. Иначе WebView
+        уничтожается, JS-контекст теряется, и TTS зависает после первой фразы. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode|density">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".WelcomeActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
+        <activity
+            android:name=".TtsCorrectionActivity"
+            android:label="Исправление произношения TTS"
+            android:exported="false" />
+
+        <activity
+            android:name=".LibraryActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/AppTheme" />
+
+
+        <activity
+            android:name=".SearchActivity"
+            android:exported="false"
+            android:label="Поиск книг"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/AppTheme" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:theme="@style/AppTheme" />
+
+        <!-- ── TTS: foreground service ──────────────────────────────────
+        Держит процесс приложения живым, когда экран погашен, и позволяет
+        BT-кнопкам работать через MediaSession. -->
+        <service
+            android:name=".TtsPlaybackService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
+        <!-- MediaButtonReceiver из androidx.media — перехватывает
+        ACTION_MEDIA_BUTTON и передаёт его нашей MediaSession, если
+        сервис был остановлен системой. -->
+        <receiver
+            android:name="androidx.media.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Для кнопки "Поделиться" в панели логов (NovaLog) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+            </provider>
+
+        </application>
+    </manifest>

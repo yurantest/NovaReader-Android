@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:orientation="horizontal"
+              android:gravity="center_vertical"
+              android:paddingStart="8dp"
+              android:paddingEnd="2dp"
+              android:paddingTop="2dp"
+              android:paddingBottom="2dp"
+              android:minHeight="44dp"
+              android:background="@android:color/transparent">
+
+    <!-- Обложка книги -->
+    <ImageView
+        android:id="@+id/notifIcon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher" />
+
+    <!-- Название книги -->
+    <TextView
+        android:id="@+id/notifTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="NovaReader" />
+
+    <!-- Кнопка Play/Pause — компактная -->
+    <ImageButton
+        android:id="@+id/notifPlayPause"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="2dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:scaleType="centerInside"
+        android:padding="2dp"
+        android:contentDescription="Play/Pause"
+        android:src="@android:drawable/ic_media_play" />
+
+    <!-- Кнопка Stop / крестик — компактная -->
+    <ImageButton
+        android:id="@+id/notifStop"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="2dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:scaleType="centerInside"
+        android:padding="2dp"
+        android:contentDescription="Стоп"
+        android:src="@android:drawable/ic_menu_close_clear_cancel" />
+
+    </LinearLayout>

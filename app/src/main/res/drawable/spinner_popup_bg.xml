@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Явный тёмный фон для попапа Spinner'ов в настройках — раньше попап
+     брал фон/цвета из системной Day/Night темы устройства (AppTheme —
+     Theme.AppCompat.DayNight), из-за чего на некоторых прошивках (где
+     системная тема светлая или OEM переопределяет стиль поповера)
+     выпадающий список рисовался белым и сливался с текстом/панелью. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#202124" />
+    <corners android:radius="8dp" />
+</shape>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Акцентный фон (фиолетовый) для основных кнопок.
+Подсветка при нажатии (state_pressed) убрана намеренно — при тапе
+никакого визуального отклика быть не должно, фон остаётся #5A4FCF
+в любом состоянии. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="rectangle">
+    <corners android:radius="14dp" />
+    <solid android:color="#5A4FCF" />
+</shape>

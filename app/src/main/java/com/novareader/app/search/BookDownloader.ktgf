@@ -1,0 +1,320 @@
+package com.novareader.app.search
+
+import android.content.Context
+import com.novareader.app.LibraryManager
+import com.novareader.app.NovaLog
+import com.novareader.app.NovaStorage
+import org.jsoup.Jsoup
+import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipFile
+
+/**
+ * Скачивание + импорт — порт DownloadWorker / _download_from_* из book_search_window.py.
+ *
+ * SearchFloor: раньше GET /book/{id} отдавал zip; сейчас часто 401 без логина —
+ * пробуем несколько URL и явную ошибку.
+ * Flibusta: /b/{id}/fb2 редиректит на static.flibusta.is → application/zip.
+ * MoreKnig: ссылки download.php со страницы книги.
+ */
+object BookDownloader {
+    private const val TAG = "NovaReader.BookDL"
+
+    data class Result(
+        val success: Boolean,
+        val message: String,
+        val localPath: String? = null,
+    )
+
+    fun downloadAndImport(
+        context: Context,
+        book: BookSearchResult,
+        link: DownloadLink,
+        onProgress: ((Int) -> Unit)? = null,
+    ): Result {
+        return try {
+            when (book.source) {
+                SearchSource.SEARCHFLOOR -> downloadSearchFloor(context, book, onProgress)
+                SearchSource.FLIBUSTA -> downloadFlibusta(context, book, link, onProgress)
+                SearchSource.MOREKNIG -> downloadMoreKnig(context, book, link, onProgress)
+                SearchSource.AUTHOR_TODAY ->
+                    Result(false, "Author.Today — только чтение онлайн, скачивание недоступно")
+            }
+        } catch (e: Exception) {
+            NovaLog.e(TAG, "download failed: ${e.message}")
+            Result(false, e.message ?: e.javaClass.simpleName)
+        }
+    }
+
+    private fun downloadSearchFloor(
+        context: Context,
+        book: BookSearchResult,
+        onProgress: ((Int) -> Unit)?,
+    ): Result {
+        val id = book.bookId ?: Regex("/b/(\\d+)").find(book.url)?.groupValues?.get(1)
+            ?: return Result(false, "Не удалось извлечь ID книги")
+        val base = siteBase(book.url).ifBlank { SiteParsers.searchfloorBase(null) }
+
+        // Как на ПК: https://searchfloor.org/book/{id}
+        // Дополнительно пробуем зеркало www и страницу /b/{id} (на случай смены API).
+        val candidates = listOf(
+            "$base/book/$id",
+            "${base.replace("://", "://www.")}/book/$id".replace("www.www.", "www."),
+        ).distinct()
+
+        var lastError = "Не удалось скачать"
+        for (url in candidates) {
+            NovaLog.d(TAG, "SF try $url")
+            val dl = SearchHttp.download(url, referer = "$base/", onProgress = onProgress)
+            if (dl.bytes != null && dl.bytes.isNotEmpty() && dl.code in 200..299) {
+                val tmp = File(context.cacheDir, "sf_${id}_${System.currentTimeMillis()}.bin")
+                tmp.writeBytes(dl.bytes)
+                val bookFile = unwrapToBookFile(tmp, context.cacheDir, preferred = "fb2")
+                    ?: run {
+                        tmp.delete()
+                        return Result(false, "Файл получен, но это не fb2/epub/mobi/zip с книгой")
+                    }
+                if (tmp.exists() && tmp.absolutePath != bookFile.absolutePath) tmp.delete()
+                return importFile(context, book, bookFile)
+            }
+            lastError = when (dl.code) {
+                401, 403 -> "SearchFloor требует вход на сайт (HTTP ${dl.code}). Откройте книгу в браузере или скачайте с Флибусты/MoreKnig."
+                404 -> "Файл не найден (HTTP 404)"
+                else -> dl.error ?: "HTTP ${dl.code}"
+            }
+        }
+        return Result(false, lastError)
+    }
+
+    private fun downloadFlibusta(
+        context: Context,
+        book: BookSearchResult,
+        link: DownloadLink,
+        onProgress: ((Int) -> Unit)?,
+    ): Result {
+        val base = siteBase(book.url).ifBlank { SiteParsers.flibustaBase(null) }
+        val id = book.bookId ?: Regex("/b/(\\d+)").find(book.url)?.groupValues?.get(1)
+        val url = when {
+            link.url.isNotBlank() -> link.url
+            id != null -> "$base/b/$id/${link.format.ifBlank { "fb2" }}"
+            else -> return Result(false, "Нет URL для скачивания")
+        }
+        NovaLog.d(TAG, "Flibusta download $url")
+        val dl = SearchHttp.download(url, referer = base, onProgress = onProgress)
+        if (dl.bytes == null || dl.bytes.isEmpty()) {
+            return Result(false, dl.error ?: "Пустой ответ HTTP ${dl.code}")
+        }
+        val ext = when {
+            link.format.isNotBlank() -> link.format.lowercase()
+            dl.contentType?.contains("epub") == true -> "epub"
+            dl.contentType?.contains("pdf") == true -> "pdf"
+            else -> "fb2"
+        }
+        val tmp = File(context.cacheDir, "fl_${System.currentTimeMillis()}.$ext")
+        tmp.writeBytes(dl.bytes)
+
+        // fb2 с Флибусты почти всегда zip (как на ПК is_zip=True)
+        val isZip = link.isZip ||
+            dl.contentType?.contains("zip") == true ||
+            looksLikeZip(tmp) ||
+            dl.finalUrl.contains(".zip", ignoreCase = true)
+
+        val bookFile = if (isZip) {
+            unwrapToBookFile(tmp, context.cacheDir, preferred = ext)?.also {
+                if (tmp.absolutePath != it.absolutePath) tmp.delete()
+            } ?: run {
+                tmp.delete()
+                return Result(false, "Архив скачан, но внутри нет fb2/epub/mobi")
+            }
+        } else tmp
+
+        return importFile(context, book, bookFile)
+    }
+
+    private fun downloadMoreKnig(
+        context: Context,
+        book: BookSearchResult,
+        link: DownloadLink,
+        onProgress: ((Int) -> Unit)?,
+    ): Result {
+        var url = link.url
+        var fmt = link.format.ifBlank { "fb2" }
+        if ("download.php" !in url) {
+            val resolved = resolveMoreKnigLinks(book.url)
+            if (resolved.isEmpty()) {
+                return Result(false, "На странице MoreKnig нет ссылок download.php")
+            }
+            url = resolved.first().url
+            fmt = resolved.first().format
+        }
+        val dl = SearchHttp.download(url, referer = book.url, onProgress = onProgress)
+        if (dl.bytes == null || dl.bytes.isEmpty()) {
+            return Result(false, dl.error ?: "HTTP ${dl.code}")
+        }
+        val tmp = File(context.cacheDir, "mk_${System.currentTimeMillis()}.$fmt")
+        tmp.writeBytes(dl.bytes)
+        val bookFile = if (looksLikeZip(tmp)) {
+            unwrapToBookFile(tmp, context.cacheDir, preferred = fmt)?.also {
+                if (tmp.absolutePath != it.absolutePath) tmp.delete()
+            } ?: return Result(false, "Архив без книги внутри")
+        } else tmp
+        return importFile(context, book, bookFile)
+    }
+
+    fun resolveMoreKnigLinks(bookUrl: String): List<DownloadLink> {
+        val html = SearchHttp.get(bookUrl, "https://moreknig.org") ?: return emptyList()
+        val doc = Jsoup.parse(html, bookUrl)
+        val links = mutableListOf<DownloadLink>()
+        for (a in doc.select("a[href*=download.php]").take(8)) {
+            val href = a.absUrl("href").ifBlank { a.attr("href") }
+            if (href.isBlank()) continue
+            val text = a.text().lowercase()
+            val fmt = when {
+                "pdf" in text -> "pdf"
+                "epub" in text -> "epub"
+                "txt" in text -> "txt"
+                "rtf" in text -> "rtf"
+                "mobi" in text -> "mobi"
+                else -> "fb2"
+            }
+            links += DownloadLink(url = href, format = fmt)
+        }
+        return links.distinctBy { it.format }
+    }
+
+    fun fetchCoverFromBookPage(book: BookSearchResult): String? {
+        return try {
+            when (book.source) {
+                SearchSource.SEARCHFLOOR -> {
+                    val id = book.bookId ?: Regex("/b/(\\d+)").find(book.url)?.groupValues?.get(1)
+                    if (id != null) "${siteBase(book.url).ifBlank { SiteParsers.searchfloorBase(null) }}/cover/$id"
+                    else null
+                }
+                SearchSource.FLIBUSTA -> {
+                    val html = SearchHttp.get(book.url, siteBase(book.url)) ?: return null
+                    val doc = Jsoup.parse(html, book.url)
+                    for (img in doc.select("img[src]")) {
+                        val src = img.attr("src").trim()
+                        if (src.startsWith("/i/") || src.startsWith("/ib/") || "/i/" in src) {
+                            return absUrl(book.url, src)
+                        }
+                    }
+                    // fallback: static cover pattern
+                    val id = book.bookId
+                    if (id != null) "https://static.flibusta.is/i/$id.jpg" else null
+                }
+                SearchSource.MOREKNIG -> {
+                    val html = SearchHttp.get(book.url, book.url) ?: return null
+                    val doc = Jsoup.parse(html, book.url)
+                    doc.selectFirst(".full-story img, .full-text img, article img, .poster img, img[src*=/uploads/]")
+                        ?.absUrl("src")
+                        ?.takeIf { it.isNotBlank() && !it.endsWith(".svg") }
+                }
+                SearchSource.AUTHOR_TODAY -> {
+                    val html = SearchHttp.get(book.url, "https://author.today") ?: return null
+                    val doc = Jsoup.parse(html, book.url)
+                    doc.selectFirst("meta[property=og:image]")?.attr("content")
+                        ?: doc.selectFirst(".book-cover img, .work-cover img, .cover img")?.absUrl("src")
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun siteBase(url: String): String {
+        val m = Regex("^(https?://[^/]+)").find(url)
+        return m?.groupValues?.get(1).orEmpty()
+    }
+
+    private fun absUrl(pageUrl: String, href: String): String {
+        return when {
+            href.startsWith("http://") || href.startsWith("https://") -> href
+            href.startsWith("//") -> "https:$href"
+            href.startsWith("/") -> siteBase(pageUrl) + href
+            else -> siteBase(pageUrl) + "/" + href
+        }
+    }
+
+    private fun looksLikeZip(file: File): Boolean {
+        if (!file.exists() || file.length() < 4) return false
+        file.inputStream().use { ins ->
+            val b = ByteArray(4)
+            if (ins.read(b) < 4) return false
+            return b[0] == 0x50.toByte() && b[1] == 0x4B.toByte()
+        }
+    }
+
+    private fun unwrapToBookFile(file: File, outDir: File, preferred: String): File? {
+        if (!looksLikeZip(file)) {
+            // уже книга
+            val ext = file.extension.lowercase()
+            if (ext in listOf("fb2", "epub", "mobi", "txt", "pdf", "rtf")) return file
+            // без расширения — переименуем
+            val renamed = File(outDir, "book_${System.currentTimeMillis()}.$preferred")
+            file.copyTo(renamed, overwrite = true)
+            return renamed
+        }
+        return try {
+            ZipFile(file).use { zip ->
+                val entries = zip.entries().asSequence()
+                    .filter { !it.isDirectory }
+                    .filter {
+                        val n = it.name.lowercase()
+                        n.endsWith(".fb2") || n.endsWith(".epub") ||
+                            n.endsWith(".mobi") || n.endsWith(".txt") || n.endsWith(".pdf")
+                    }
+                    .sortedBy { e ->
+                        val n = e.name.lowercase()
+                        when {
+                            preferred.isNotBlank() && n.endsWith(".$preferred") -> 0
+                            n.endsWith(".fb2") -> 1
+                            n.endsWith(".epub") -> 2
+                            n.endsWith(".mobi") -> 3
+                            else -> 4
+                        }
+                    }
+                    .toList()
+                val entry = entries.firstOrNull() ?: return null
+                val name = File(entry.name).name
+                val out = File(outDir, "ext_${System.currentTimeMillis()}_$name")
+                zip.getInputStream(entry).use { input ->
+                    FileOutputStream(out).use { input.copyTo(it) }
+                }
+                out
+            }
+        } catch (e: Exception) {
+            NovaLog.e(TAG, "unzip failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun importFile(context: Context, book: BookSearchResult, file: File): Result {
+        val ext = file.extension.lowercase().ifBlank { "fb2" }
+        if (ext !in listOf("fb2", "epub", "mobi", "txt", "pdf", "rtf", "azw3")) {
+            return Result(false, "Неподдерживаемый формат: .$ext")
+        }
+        val safeTitle = book.title
+            .replace(Regex("[<>:\"/\\\\|?*]"), "")
+            .trim()
+            .ifBlank { "book" }
+            .take(80)
+        val relative = "${safeTitle}_${System.currentTimeMillis()}.$ext"
+        val dest = File(NovaStorage.booksDir(context), relative)
+        try {
+            file.copyTo(dest, overwrite = true)
+        } catch (e: Exception) {
+            return Result(false, "Не удалось сохранить файл: ${e.message}")
+        }
+        if (file.absolutePath != dest.absolutePath) {
+            try { file.delete() } catch (_: Exception) {}
+        }
+        return try {
+            LibraryManager(context).addBook(relative, book.title, ext)
+            Result(true, "Сохранено: ${dest.name}", dest.absolutePath)
+        } catch (e: Exception) {
+            NovaLog.e(TAG, "addBook failed: ${e.message}")
+            Result(false, "Файл скачан, но не добавлен в библиотеку: ${e.message}")
+        }
+    }
+}

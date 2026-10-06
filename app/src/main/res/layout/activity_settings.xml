@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#141518"
+            android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="28dp">
+
+        <!-- Верхняя панель -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btnCloseSettings"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:gravity="center"
+                android:text="&#xE5C4;"
+                android:textColor="#D6D7DB"
+                android:textSize="25sp"
+                android:fontFamily="@font/material_icons_regular"
+                android:contentDescription="Назад" />
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingStart="4dp">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Настройки"
+                    android:textColor="#F4F4F5"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="NovaReader · Android"
+                    android:textColor="#7F8188"
+                    android:textSize="11sp"
+                    android:layout_marginTop="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Чтение -->
+            <TextView style="@style/SettingsSectionLabel" android:text="ЧТЕНИЕ" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/settings_card_bg"
+                android:padding="14dp">
+
+                <TextView style="@style/SettingsItemTitle" android:text="Размер шрифта" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <SeekBar android:id="@+id/seekFontSize" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="24" />
+                    <TextView android:id="@+id/labelFontSize" style="@style/SettingsValueLabel" android:layout_marginStart="10dp" android:paddingBottom="0dp" />
+                </LinearLayout>
+
+                <TextView style="@style/SettingsItemTitle" android:layout_marginTop="12dp" android:text="Межстрочный интервал" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <SeekBar android:id="@+id/seekLineHeight" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="20" />
+                    <TextView android:id="@+id/labelLineHeight" style="@style/SettingsValueLabel" android:layout_marginStart="10dp" android:paddingBottom="0dp" />
+                </LinearLayout>
+
+                <TextView style="@style/SettingsItemTitle" android:layout_marginTop="12dp" android:text="Поля страницы" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical">
+                    <SeekBar android:id="@+id/seekMargin" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="120" />
+                    <TextView android:id="@+id/labelMargin" style="@style/SettingsValueLabel" android:layout_marginStart="10dp" android:paddingBottom="0dp" />
+                </LinearLayout>
+
+                <TextView style="@style/SettingsItemTitle" android:layout_marginTop="12dp" android:text="Стиль выделения" />
+                <Spinner android:id="@+id/spinnerHighlightStyle" android:layout_width="match_parent" android:layout_height="46dp" android:background="@drawable/btn_neutral" android:paddingStart="10dp" android:paddingEnd="10dp" />
+            </LinearLayout>
+
+            <!-- TTS -->
+            <TextView style="@style/SettingsSectionLabel" android:text="ТЕКСТ ВО ВРЕМЯ ОЗВУЧКИ" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/settings_card_bg"
+                android:padding="14dp">
+                <TextView style="@style/SettingsItemTitle" android:text="Цвет подсветки" />
+                <LinearLayout android:id="@+id/ttsColorRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingTop="5dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingTop="10dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Свой цвет" android:textColor="#A8A8AE" android:textSize="12sp" />
+                    <View android:id="@+id/ttsCustomColorSwatch" android:layout_width="38dp" android:layout_height="38dp" android:layout_marginStart="12dp" />
+                    <TextView android:id="@+id/ttsOpacityLabel" android:layout_width="48dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:textColor="#C9CAD0" android:textSize="12sp" />
+                    <SeekBar android:id="@+id/seekTtsOpacity" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:max="95" />
+                </LinearLayout>
+
+                <TextView style="@style/SettingsItemTitle" android:layout_marginTop="14dp" android:text="Старт с разорванного предложения" />
+                <CheckBox
+                    android:id="@+id/checkboxTtsSplitStart"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Читать видимую половину предложения"
+                    android:textColor="#C9CAD0"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="Если предложение началось на предыдущей странице, при включении TTS начнёт с его видимой части; при выключении — со следующего полного предложения."
+                    android:textColor="#777981"
+                    android:textSize="11sp" />
+
+                <TextView style="@style/SettingsItemTitle" android:layout_marginTop="14dp" android:text="Не гасить экран во время озвучки" />
+                <Spinner
+                    android:id="@+id/spinnerScreenWake"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/btn_neutral"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Экран не гаснет, пока идёт озвучка. «Бесконечно» — весь сеанс, иначе гаснет сам через выбранное время, даже если озвучка продолжается."
+                    android:textColor="#777981"
+                    android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Тема -->
+                <TextView style="@style/SettingsSectionLabel" android:text="ВНЕШНИЙ ВИД ЧТАЛКИ" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/settings_card_bg"
+                    android:padding="14dp">
+                    <TextView style="@style/SettingsItemTitle" android:text="Готовая тема" />
+                    <LinearLayout android:id="@+id/themeRow" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingTop="6dp" />
+                    <TextView style="@style/SettingsItemTitle" android:layout_marginTop="14dp" android:text="Своя тема" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingTop="5dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Фон" android:textColor="#8E9097" android:textSize="12sp" />
+                        <View android:id="@+id/customBgSwatch" android:layout_width="38dp" android:layout_height="38dp" android:layout_marginStart="8dp" android:layout_marginEnd="18dp" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Текст" android:textColor="#8E9097" android:textSize="12sp" />
+                        <View android:id="@+id/customTextSwatch" android:layout_width="38dp" android:layout_height="38dp" android:layout_marginStart="8dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Библиотека -->
+                <TextView style="@style/SettingsSectionLabel" android:text="БИБЛИОТЕКА" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="@drawable/settings_card_bg"
+                    android:padding="14dp">
+                    <TextView style="@style/SettingsItemTitle" android:text="Цвета библиотеки" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:paddingTop="6dp">
+                        <View android:id="@+id/libraryBgSwatch" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginEnd="10dp" />
+                        <View android:id="@+id/libraryCardSwatch" android:layout_width="40dp" android:layout_height="40dp" android:layout_marginEnd="10dp" />
+                        <View android:id="@+id/libraryAccentSwatch" android:layout_width="40dp" android:layout_height="40dp" />
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:text="Фон · карточки · акцент" android:textColor="#777981" android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <TextView style="@style/SettingsItemTitle" android:layout_marginTop="12dp" android:text="Шрифт книги" />
+                    <Spinner
+                        android:id="@+id/spinnerFontFamily"
+                        android:layout_width="match_parent"
+                        android:layout_height="46dp"
+                        android:layout_marginTop="6dp"
+                        android:background="@drawable/btn_neutral"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp" />
+
+                    <TextView
+                        android:id="@+id/btnImportFont"
+                        android:layout_width="match_parent"
+                        android:layout_height="54dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/settings_action_bg"
+                        android:gravity="center_vertical"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:text="Добавить свой шрифт (.ttf / .otf)"
+                        android:textColor="#D8D9DD"
+                        android:textSize="13sp"
+                        android:drawableStart="@drawable/ic_book_nova"
+                        android:drawablePadding="12dp" />
+                    </LinearLayout>
+
+                    <!-- Запуск -->
+                    <TextView style="@style/SettingsSectionLabel" android:text="ЗАПУСК" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/settings_card_bg"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:paddingTop="10dp"
+                        android:paddingEnd="12dp"
+                        android:paddingBottom="10dp">
+                        <CheckBox
+                            android:id="@+id/checkboxAutoOpenLibrary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Открывать библиотеку сразу после запуска"
+                            android:textColor="#F0F0F2"
+                            android:textSize="14sp" />
+                        </LinearLayout>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="14dp"
+                            android:layout_marginTop="6dp"
+                            android:text="Удобно, если NovaReader используется в первую очередь как библиотека книг."
+                            android:textColor="#777981"
+                            android:textSize="11sp" />
+
+                        <!-- Поиск книг в интернете (по умолчанию выключен) -->
+                        <TextView style="@style/SettingsSectionLabel" android:text="ПОИСК КНИГ" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/settings_card_bg"
+                            android:orientation="vertical"
+                            android:padding="12dp">
+                            <CheckBox
+                                android:id="@+id/checkboxBookSearchEnabled"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Поиск книг в интернете"
+                                android:textColor="#F0F0F2"
+                                android:textSize="14sp" />
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="48dp"
+                                android:text="Показывает кнопку поиска в библиотеке. Поиск выполняется на сторонних сайтах; NovaReader книги не хранит и не распространяет. Соблюдайте авторские права."
+                                android:textColor="#777981"
+                                android:textSize="11sp" />
+
+                            <!-- Домены-зеркала. Пустое поле = значение по умолчанию.
+                            Нужны, когда основной домен Флибусты/SearchFloor заблокирован. -->
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="14dp"
+                                android:text="Домен Флибусты (зеркало)"
+                                android:textColor="#C9CAD0"
+                                android:textSize="12sp" />
+                            <EditText
+                                android:id="@+id/editFlibustaDomain"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:layout_marginTop="4dp"
+                                android:hint="https://flibusta.is (по умолчанию)"
+                                android:inputType="textUri"
+                                android:textSize="13sp"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:background="@drawable/btn_neutral"
+                                android:textColor="#F0F0F2"
+                                android:textColorHint="#777981"
+                                android:singleLine="true" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:text="Домен SearchFloor (зеркало)"
+                                android:textColor="#C9CAD0"
+                                android:textSize="12sp" />
+                            <EditText
+                                android:id="@+id/editSearchfloorDomain"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:layout_marginTop="4dp"
+                                android:hint="https://searchfloor.org (по умолчанию)"
+                                android:inputType="textUri"
+                                android:textSize="13sp"
+                                android:paddingStart="10dp"
+                                android:paddingEnd="10dp"
+                                android:background="@drawable/btn_neutral"
+                                android:textColor="#F0F0F2"
+                                android:textColorHint="#777981"
+                                android:singleLine="true" />
+                            </LinearLayout>
+
+                            <!-- Прочее -->
+                            <TextView style="@style/SettingsSectionLabel" android:text="РАЗРАБОТКА" />
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/settings_card_bg"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+                                <CheckBox
+                                    android:id="@+id/checkboxDevMode"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Режим разработчика"
+                                    android:textColor="#F0F0F2"
+                                    android:textSize="14sp" />
+                                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="48dp" android:text="Показывает кнопку «Логи» на верхней панели читалки." android:textColor="#777981" android:textSize="11sp" />
+                            </LinearLayout>
+
+                        </LinearLayout>
+                    </ScrollView>

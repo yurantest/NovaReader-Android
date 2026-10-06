@@ -1,0 +1,349 @@
+package com.novareader.app.search
+
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import java.net.URLEncoder
+
+/**
+ * Парсеры сайтов — упрощённый порт BookParser из book_search_window.py.
+ * На списке результатов собираем title/url/cover, без обязательного
+ * детального запроса на каждую книгу (быстрее и экономнее на мобильной сети).
+ */
+object SiteParsers {
+
+    private const val AUTHOR_BASE = "https://author.today"
+    private const val MOREKNIG_BASE = "https://moreknig.org"
+    private const val DEFAULT_SEARCHFLOOR = "https://searchfloor.org"
+    private const val DEFAULT_FLIBUSTA = "https://flibusta.is"
+
+    fun searchfloorBase(override: String?): String =
+        override?.trim()?.takeIf { it.isNotEmpty() }?.trimEnd('/') ?: DEFAULT_SEARCHFLOOR
+
+    fun flibustaBase(override: String?): String =
+        override?.trim()?.takeIf { it.isNotEmpty() }?.trimEnd('/') ?: DEFAULT_FLIBUSTA
+
+    private fun enc(q: String): String = URLEncoder.encode(q.trim(), "UTF-8")
+
+    private fun abs(base: String, href: String): String {
+        return when {
+            href.startsWith("http://") || href.startsWith("https://") -> href
+            href.startsWith("//") -> "https:$href"
+            href.startsWith("/") -> base.trimEnd('/') + href
+            else -> base.trimEnd('/') + "/" + href
+        }
+    }
+
+    fun searchAuthorToday(
+        query: String,
+        limit: Int,
+        maxPages: Int,
+        cancelled: () -> Boolean,
+        onBook: (BookSearchResult) -> Unit,
+    ): Int {
+        val seen = LinkedHashSet<String>()
+        var count = 0
+        for (page in 1..maxPages) {
+            if (cancelled() || count >= limit) break
+            val url = "$AUTHOR_BASE/search?category=works&q=${enc(query)}&page=$page"
+            val html = SearchHttp.get(url, AUTHOR_BASE) ?: break
+            val doc = Jsoup.parse(html, AUTHOR_BASE)
+            if (doc.text().contains(Regex("Ничего не найдено|Нет результатов|No results", RegexOption.IGNORE_CASE))) break
+
+            val pageLinks = mutableListOf<Pair<String, String>>() // url to title
+            for (a in doc.select("a[href*=/work/]")) {
+                val href = a.attr("href")
+                if ("/reviews" in href || "search" in href || "page" in href) continue
+                val m = Regex("/work/(\\d+)").find(href) ?: continue
+                val full = abs(AUTHOR_BASE, href.substringBefore('?'))
+                if (!seen.add(full)) continue
+                val title = a.text().trim().ifBlank { "Без названия" }
+                pageLinks.add(full to title)
+            }
+            if (pageLinks.isEmpty()) break
+
+            for ((bookUrl, titleHint) in pageLinks) {
+                if (cancelled() || count >= limit) break
+                val book = parseAuthorTodayCard(doc, bookUrl, titleHint) ?: BookSearchResult(
+                    title = titleHint,
+                    url = bookUrl,
+                    source = SearchSource.AUTHOR_TODAY,
+                    bookId = Regex("/work/(\\d+)").find(bookUrl)?.groupValues?.get(1),
+                )
+                onBook(book)
+                count++
+            }
+            Thread.sleep((400L..900L).random())
+        }
+        return count
+    }
+
+    private fun parseAuthorTodayCard(doc: Document, bookUrl: String, titleHint: String): BookSearchResult? {
+        // Ищем ближайшую карточку по ссылке на странице выдачи
+        val a = doc.select("a[href]").firstOrNull {
+            abs(AUTHOR_BASE, it.attr("href")).substringBefore('?') == bookUrl.substringBefore('?')
+        } ?: return null
+        val card = a.parents().firstOrNull { p ->
+            p.select("img").isNotEmpty() || p.className().contains("card", true)
+        } ?: a.parent()
+        val title = card?.selectFirst("a[href*=/work/]")?.text()?.trim()?.ifBlank { titleHint } ?: titleHint
+        val cover = card?.selectFirst("img")?.let { img ->
+            val src = img.attr("src").ifBlank { img.attr("data-src") }
+            if (src.isNotBlank()) abs(AUTHOR_BASE, src) else null
+        }
+        val authors = card?.select("a[href*=/author/]")?.map { it.text().trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+        return BookSearchResult(
+            title = title.ifBlank { "Без названия" },
+            authors = authors,
+            url = bookUrl,
+            source = SearchSource.AUTHOR_TODAY,
+            coverUrl = cover,
+            bookId = Regex("/work/(\\d+)").find(bookUrl)?.groupValues?.get(1),
+        )
+    }
+
+    fun searchSearchFloor(
+        query: String,
+        limit: Int,
+        maxPages: Int,
+        baseOverride: String?,
+        cancelled: () -> Boolean,
+        onBook: (BookSearchResult) -> Unit,
+    ): Int {
+        val base = searchfloorBase(baseOverride)
+        val seen = LinkedHashSet<String>()
+        var count = 0
+        for (page in 1..maxPages) {
+            if (cancelled() || count >= limit) break
+            // На актуальном searchfloor.org выдача — главная с ?q=, путь /search отдаёт 404
+            val url = if (page <= 1) "$base/?q=${enc(query)}" else "$base/?q=${enc(query)}&page=$page"
+            val html = SearchHttp.get(url, base) ?: break
+            val doc = Jsoup.parse(html, base)
+            var foundOnPage = 0
+            for (a in doc.select("a[href*=/b/]")) {
+                if (cancelled() || count >= limit) break
+                val href = a.attr("href")
+                val m = Regex("/b/(\\d+)").find(href) ?: continue
+                val full = abs(base, href.substringBefore('?'))
+                if (!seen.add(full)) continue
+                val card = a.parents().firstOrNull { it.select("img").isNotEmpty() } ?: a.parent()
+                val title = a.text().trim().ifBlank {
+                    card?.selectFirst("img")?.attr("alt")?.trim().orEmpty()
+                }.ifBlank { "Без названия" }
+                val cover = card?.selectFirst("img")?.let { img ->
+                    val src = img.attr("src").ifBlank { img.attr("data-src") }
+                    if (src.isNotBlank()) abs(base, src) else null
+                }
+                val bid = m.groupValues[1]
+                val coverFinal = cover ?: "$base/cover/$bid"
+                onBook(
+                    BookSearchResult(
+                        title = title,
+                        url = full,
+                        source = SearchSource.SEARCHFLOOR,
+                        coverUrl = coverFinal,
+                        bookId = bid,
+                        downloadLinks = listOf(
+                            DownloadLink(url = "$base/book/$bid", format = "fb2", isZip = true)
+                        ),
+                    )
+                )
+                count++
+                foundOnPage++
+            }
+            // Пагинация: раньше был #btn-next-page; на текущем сайте работает ?page=N.
+            // Останавливаемся только если на странице не нашли ни одной новой книги.
+            if (foundOnPage == 0) break
+            Thread.sleep((400L..900L).random())
+        }
+        return count
+    }
+
+    fun searchMoreKnig(
+        query: String,
+        limit: Int,
+        maxPages: Int,
+        cancelled: () -> Boolean,
+        onBook: (BookSearchResult) -> Unit,
+    ): Int {
+        val seen = LinkedHashSet<String>()
+        var count = 0
+        // прогрев сессии POST, как на ПК
+        SearchHttp.post(
+            "$MOREKNIG_BASE/index.php?do=search",
+            mapOf(
+                "do" to "search",
+                "subaction" to "search",
+                "story" to query,
+                "search_start" to "0",
+                "result_from" to "1",
+                "full_search" to "0",
+            ),
+            MOREKNIG_BASE,
+        )
+        for (page in 1..maxPages) {
+            if (cancelled() || count >= limit) break
+            val searchStart = if (page == 1) "0" else page.toString()
+            val resultFrom = if (page == 1) "1" else ((page - 1) * 10 + 1).toString()
+            val html = SearchHttp.post(
+                "$MOREKNIG_BASE/index.php?do=search",
+                mapOf(
+                    "do" to "search",
+                    "subaction" to "search",
+                    "story" to query,
+                    "search_start" to searchStart,
+                    "result_from" to resultFrom,
+                    "full_search" to "0",
+                ),
+                MOREKNIG_BASE,
+            ) ?: break
+            val doc = Jsoup.parse(html, MOREKNIG_BASE)
+            val content = doc.getElementById("dle-content") ?: break
+            var found = 0
+            for (article in content.select("article, .shortstory, .item, .book-item, div[class*=short]")) {
+                if (cancelled() || count >= limit) break
+                val a = article.selectFirst("a[href]") ?: continue
+                val href = a.attr("href")
+                if (href.contains("do=search") || href.contains("#")) continue
+                val full = abs(MOREKNIG_BASE, href.substringBefore('?'))
+                if (!full.contains(MOREKNIG_BASE.removePrefix("https://").removePrefix("http://").substringAfter("://").ifBlank { "moreknig" }) &&
+                    !href.startsWith("/") && !href.startsWith("http")
+                ) continue
+                if (!seen.add(full)) continue
+                val title = (article.selectFirst("h2, h3, .title, a")?.text() ?: a.text()).trim()
+                    .ifBlank { "Без названия" }
+                val cover = article.selectFirst("img")?.let { img ->
+                    val src = img.attr("src").ifBlank { img.attr("data-src") }
+                    if (src.isNotBlank()) abs(MOREKNIG_BASE, src) else null
+                }
+                val authors = article.select(".author, a[href*=/authors/], .muted")
+                    .map { it.text().trim() }.filter { it.isNotEmpty() && it != title }.distinct()
+                onBook(
+                    BookSearchResult(
+                        title = title,
+                        authors = authors,
+                        url = full,
+                        source = SearchSource.MOREKNIG,
+                        coverUrl = cover,
+                        // Реальные download.php резолвятся при нажатии «Скачать»
+                        downloadLinks = listOf(
+                            DownloadLink(url = full, format = "fb2")
+                        ),
+                    )
+                )
+                count++
+                found++
+            }
+            // fallback: любые ссылки на книги внутри dle-content
+            if (found == 0) {
+                for (a in content.select("a[href]")) {
+                    if (cancelled() || count >= limit) break
+                    val href = a.attr("href")
+                    if (!href.contains(".html") && !href.matches(Regex(".*/\\d+-.*"))) continue
+                    if (href.contains("do=search")) continue
+                    val full = abs(MOREKNIG_BASE, href.substringBefore('?'))
+                    if (!seen.add(full)) continue
+                    val title = a.text().trim().ifBlank { "Без названия" }
+                    if (title.length < 2) continue
+                    onBook(
+                        BookSearchResult(
+                            title = title,
+                            url = full,
+                            source = SearchSource.MOREKNIG,
+                            downloadLinks = listOf(DownloadLink(url = full, format = "fb2")),
+                        )
+                    )
+                    count++
+                    found++
+                }
+            }
+            if (found == 0) break
+            Thread.sleep((400L..900L).random())
+        }
+        return count
+    }
+
+    fun searchFlibusta(
+        query: String,
+        limit: Int,
+        maxPages: Int,
+        baseOverride: String?,
+        cancelled: () -> Boolean,
+        onBook: (BookSearchResult) -> Unit,
+    ): Int {
+        val base = flibustaBase(baseOverride)
+        val seen = LinkedHashSet<String>()
+        var count = 0
+        for (page in 1..maxPages) {
+            if (cancelled() || count >= limit) break
+            var url = "$base/booksearch?ask=${enc(query)}"
+            if (page > 1) url += "&page=${page - 1}"
+            val html = SearchHttp.get(url, base) ?: break
+            val doc = Jsoup.parse(html, base)
+
+            // Книги: ссылки /b/ID
+            var found = 0
+            val bookHeading = doc.select("h3").firstOrNull { it.text().contains("Найденные книги") }
+            val scope = bookHeading?.nextElementSibling() ?: doc.body()
+            for (a in scope.select("a[href^=/b/], a[href*=/b/]")) {
+                if (cancelled() || count >= limit) break
+                val href = a.attr("href")
+                val m = Regex("/b/(\\d+)").find(href) ?: continue
+                val full = abs(base, href.substringBefore('?'))
+                if (!seen.add(full)) continue
+                val title = a.text().trim().ifBlank { "Без названия" }
+                // авторы часто рядом в том же <li>
+                val li = a.parent()
+                val authors = li?.select("a[href^=/a/]")?.map { it.text().trim() }?.filter { it.isNotEmpty() }
+                    ?: emptyList()
+                val bid = m.groupValues[1]
+                onBook(
+                    BookSearchResult(
+                        title = title,
+                        authors = authors,
+                        url = full,
+                        source = SearchSource.FLIBUSTA,
+                        bookId = bid,
+                        // Обложку доберём со страницы книги при показе карточки
+                        coverUrl = null,
+                        downloadLinks = listOf(
+                            DownloadLink(url = "$base/b/$bid/fb2", format = "fb2", isZip = true),
+                            DownloadLink(url = "$base/b/$bid/epub", format = "epub"),
+                            DownloadLink(url = "$base/b/$bid/mobi", format = "mobi"),
+                        ),
+                    )
+                )
+                count++
+                found++
+            }
+            if (found == 0 && page == 1) {
+                // fallback по всей странице
+                for (a in doc.select("a[href^=/b/]")) {
+                    if (cancelled() || count >= limit) break
+                    val href = a.attr("href")
+                    val m = Regex("/b/(\\d+)").find(href) ?: continue
+                    val full = abs(base, href.substringBefore('?'))
+                    if (!seen.add(full)) continue
+                    val bid = m.groupValues[1]
+                    onBook(
+                        BookSearchResult(
+                            title = a.text().trim().ifBlank { "Без названия" },
+                            url = full,
+                            source = SearchSource.FLIBUSTA,
+                            bookId = bid,
+                            downloadLinks = listOf(
+                                DownloadLink(url = "$base/b/$bid/fb2", format = "fb2", isZip = true),
+                                DownloadLink(url = "$base/b/$bid/epub", format = "epub"),
+                                DownloadLink(url = "$base/b/$bid/mobi", format = "mobi"),
+                            ),
+                        )
+                    )
+                    count++
+                    found++
+                }
+            }
+            if (found == 0) break
+            Thread.sleep((400L..900L).random())
+        }
+        return count
+    }
+}

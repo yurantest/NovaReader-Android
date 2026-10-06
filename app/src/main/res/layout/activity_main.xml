@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Панель логов теперь вызывается не отдельной нативной кнопкой,
+         а через кнопку "Логи" на верхней панели reader.html (как в
+         desktop-версии) → bridge.showNativeLogs() → показывает этот же
+         overlay. Сама кнопка условна: видна только при включённом в
+         настройках "Режиме разработчика" (SettingsManager.devMode). -->
+    <LinearLayout
+        android:id="@+id/logsOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#EE000000"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+            <Button
+                android:id="@+id/btnLogsRefresh"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Обновить" />
+
+            <Button
+                android:id="@+id/btnLogsShare"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Поделиться" />
+
+            <Button
+                android:id="@+id/btnLogsClose"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Закрыть" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/logsText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:textColor="#00FF00"
+                android:textSize="11sp"
+                android:typeface="monospace"
+                android:text="" />
+        </ScrollView>
+    </LinearLayout>
+
+</FrameLayout>

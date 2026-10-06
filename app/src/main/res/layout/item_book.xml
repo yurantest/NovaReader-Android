@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/bookCardRoot"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_margin="5dp"
+              android:orientation="vertical"
+              android:padding="7dp"
+              android:background="@drawable/book_card_bg"
+              android:elevation="2dp">
+
+    <FrameLayout
+        android:id="@+id/coverFrame"
+        android:layout_width="match_parent"
+        android:layout_height="188dp"
+        android:background="@drawable/cover_placeholder_bg"
+        android:clipToOutline="true">
+
+        <ImageView
+            android:id="@+id/coverImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:contentDescription="Обложка книги" />
+
+        <TextView
+            android:id="@+id/coverPlaceholderText"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="12dp"
+            android:textColor="#D7D7D7"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/progressBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="7dp"
+            android:background="#D91B1C20"
+            android:gravity="center"
+            android:minWidth="42dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="0%"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/selectCheckbox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="3dp"
+            android:visibility="gone"
+            android:clickable="false"
+            android:focusable="false"
+            android:scaleX="1.15"
+            android:scaleY="1.15" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="5dp"
+            android:layout_gravity="bottom"
+            android:max="100"
+            android:progressDrawable="@drawable/progress_library" />
+        </FrameLayout>
+
+        <!-- Название книги: до 3 строк, чтобы длинные названия
+        вроде «Стрелец: Власть бушующего пламени» влезали целиком. -->
+        <TextView
+            android:id="@+id/titleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="9dp"
+            android:maxLines="5"
+            android:ellipsize="end"
+            android:textColor="#F4F4F5"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Автор: до 2 строк, чтобы «Ян Бадевский, Цоколов ...»
+        и «Хайдарали Мирзоевич ...» не резались многоточием. -->
+        <TextView
+            android:id="@+id/authorText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="4"
+            android:ellipsize="end"
+            android:textColor="#A8A8AE"
+            android:textSize="11sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:background="#16FFFFFF"
+                android:gravity="center"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="Читаю"
+                android:textColor="#C8C1FF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/formatText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:text="EPUB"
+                android:textColor="#777982"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/lastReadText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:text="Открыта:\n22.09.2026 20:56"
+                android:textColor="#85868C"
+                android:textSize="10sp" />
+            </LinearLayout>

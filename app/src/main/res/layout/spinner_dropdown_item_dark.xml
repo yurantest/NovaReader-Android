@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Пункт ВЫПАДАЮЩЕГО списка. В отличие от свёрнутого спиннера, эти строки
+     рисуются в отдельном PopupWindow поверх активности — у него свой
+     резолвинг цвета фона, который на части устройств/прошивок игнорирует
+     тёмную стилизацию активности. Поэтому здесь фон и цвет текста задаём
+     явно, а не полагаемся на android.R.layout.simple_spinner_dropdown_item. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="44dp"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:background="#202124"
+    android:textColor="#E8EAED"
+    android:textSize="14sp"
+    android:ellipsize="end"
+    android:singleLine="true" />

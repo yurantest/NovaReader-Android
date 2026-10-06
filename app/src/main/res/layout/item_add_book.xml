@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/addCardRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="310dp"
+    android:layout_margin="5dp"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="12dp"
+    android:background="@drawable/settings_action_bg"
+    android:elevation="1dp">
+
+    <TextView
+        android:id="@+id/addCardPlus"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:gravity="center"
+        android:text="&#xE145;"
+        android:textSize="42sp"
+        android:fontFamily="@font/material_icons_regular"
+        android:includeFontPadding="false"
+        android:contentDescription="Добавить книгу" />
+</LinearLayout>
